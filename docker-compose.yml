@@ -1,0 +1,54 @@
+version: '3.7'
+
+services:
+  nginx:
+    container_name: nginx
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+      target: basic
+    volumes:
+      - ./public:/var/www/html
+    ports:
+      - 80:80
+    depends_on:
+      - php-fpm
+    networks:
+      - network_test
+
+  php-fpm:
+    container_name: fpm
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: development
+    environment:
+      - DD_SERVICE=test
+      - DD_ENV=jgmullor
+      - DD_AGENT_HOST=datadog
+      - DD_TRACE_AGENT_PORT=8100
+      - DD_TRACE_SYMFONY_ENABLED=true
+      - DD_TRACE_GUZZLE_ENABLED=true
+      - DD_TRACE_PDO_ENABLED=true
+    volumes:
+      - .:/var/app
+      - ~/.composer:/.composer
+    networks:
+      - network_test
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  datadog:
+    container_name: datadog
+    image: public.ecr.aws/datadog/agent:latest
+    environment:
+      - DD_API_KEY=changeme
+      - DD_APM_ENABLED=true
+      - DD_SITE=datadoghq.eu
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_APM_RECEIVER_PORT=8100
+      - DD_HOSTNAME=datadog.local
+
+networks:
+  network_test:
+    driver: bridge
